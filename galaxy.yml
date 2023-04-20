@@ -1,0 +1,9 @@
+namespace: homelab
+name: example_collection
+version: 0.0.1
+readme: README.md
+authors:
+  - Victor M Santiago (vsantiago113sec@gmail.com)
+description: An example collection for educational purpose
+license_file: LICENSE
+repository: https://github.com/vsantiago113/ansible_inventory_plugin_example
