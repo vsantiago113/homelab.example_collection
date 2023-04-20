@@ -6,4 +6,4 @@ authors:
   - Victor M Santiago (vsantiago113sec@gmail.com)
 description: An example collection for educational purpose
 license_file: LICENSE
-repository: https://github.com/vsantiago113/ansible_inventory_plugin_example
+repository: https://github.com/vsantiago113/homelab.example_collection.git

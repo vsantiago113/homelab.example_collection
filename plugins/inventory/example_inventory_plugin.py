@@ -9,11 +9,11 @@ import re
 #Ansible imports
 from ansible.utils.display import Display
 from ansible.module_utils.basic import to_native
-from ansible.errors import AnsibleError, AnsibleParserError
+from ansible.errors import AnsibleParserError
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable, Cacheable
 from ansible.inventory.group import to_safe_group_name
 
-from ansible_collections.homelab.example_inv_plugin.plugins.plugins_utils.fetch_data_func import fetch_data
+from ansible_collections.homelab.example_collection.plugins.plugins_utils.fetch_data_func import fetch_data
 
 DOCUMENTATION = r"""
 name: example_inventory_plugin
