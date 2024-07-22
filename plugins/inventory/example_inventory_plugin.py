@@ -1,12 +1,12 @@
 """
-The inventory plugin fetch data from SolarWinds into an Ansible inventory.
+The inventory plugin fetches data from a remote source into an Ansible inventory.
 Note: The data generated is all fake using the Python Faker module.
 """
 
 # Python built-in imports
 import re
 
-#Ansible imports
+# Ansible imports
 from ansible.utils.display import Display
 from ansible.module_utils.basic import to_native
 from ansible.errors import AnsibleParserError
@@ -28,11 +28,11 @@ options:
     filter_group_name:
         description: Filter inventory to only include hosts from the specified group
         required: false
-        type: List[str]
+        type: list[str]
     filter_exclude_host:
         description: Filter inventory hosts to exclude any host that matches the regex pattern
         required: false
-        type: List[dict]
+        type: list[dict]
 """
 
 EXAMPLE = r"""
@@ -59,80 +59,56 @@ display = Display()
 
 
 class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
-    # used internally by Ansible, it should match the file name but not required
+    """
+    Ansible inventory plugin that fetches data from a remote source.
+    """
+
     NAME = "homelab.example_collection.example_inventory_plugin"
 
-    def verify_file(self, path):
-        """return true/false if this is possibly a valid file for this plugin to consume """
-        if super(InventoryModule, self).verify_file(path):
-            # base class verifies that file exists and is readable by current user
-            if path.endswith(("inventory.yml", "inventory.yaml", "inv.yml", "inv.yaml")):
-                return True
-        return False
+    def verify_file(self, path: str) -> bool:
+        """Return true/false if this is possibly a valid file for this plugin to consume."""
+        valid = super().verify_file(path)
+        return valid and path.endswith(("inventory.yml", "inventory.yaml", "inv.yml", "inv.yaml"))
 
-    def parse(self, inventory, loader, path, cache=False):
-        # call base method to ensure properties are available for use with other helper methods
-        super(InventoryModule, self).parse(inventory, loader, path, cache)
+    def parse(self, inventory, loader, path, cache: bool = False) -> None:
+        """Parse the inventory file and populate the Ansible inventory."""
+        super().parse(inventory, loader, path, cache)
 
-        if path is None:
+        if not path:
             raise AnsibleParserError("Path is not set correctly.")
 
-        # this method will parse "common format" inventory sources and
-        # update any options declared in DOCUMENTATION as needed
         config_data = self._read_config_data(path)
-
         fetched_data = fetch_data(config_data)
 
         for device in fetched_data:
             try:
                 group = to_safe_group_name(device["site"], replacer="_", force=True)
-                name = device["node_name"]
-                del device["node_name"]
-                host_vars = device
+                name = device.pop("node_name")
                 inventory.add_group(group=group)
                 inventory.add_host(host=name, group=group)
-                for key, value in host_vars.items():
+                for key, value in device.items():
                     inventory.set_variable(name, key, value)
             except KeyError as error:
-                print(to_native(error))
+                display.warning(f"Missing expected key: {to_native(error)}")
 
-            # Composed variables
-            self._set_composite_vars(config_data.get("compose"), host_vars, name,
-                                    strict=config_data.get("strict", False))
-
-            # Complex groups based on jinja2 conditionals, hosts that meet the conditional are added to group
-            self._add_host_to_composed_groups(config_data.get("groups"), host_vars, name,
-                                            strict=config_data.get("strict", False))
-
-            # Create groups based on variable values and add the corresponding hosts to it
-            self._add_host_to_keyed_groups(config_data.get("keyed_groups"), host_vars, name,
-                                        strict=config_data.get("strict", False))
-
-        # Filter based on the specified group name
-        if config_data.get("filter_group_name"):
-            for group_name in inventory.get_groups_dict():
-                if group_name not in ["all", "ungrouped"]:
-                    if group_name.lower() not in [
-                            j.lower() for j in config_data.get("filter_group_name")
-                        ]:
-                        inventory.remove_group(group_name)
-
-        if config_data.get("filter_exclude_host"):
-            # Gather hosts to remove
-            hosts_to_remove = [
-                host
-                for host in inventory.hosts.values()
-                for exclude_values in config_data.get("filter_exclude_host")
-                if re.match(
-                    exclude_values["regex"],
-                    host.vars.get(exclude_values["key"], ""),
-                    flags=re.IGNORECASE,
+            self._set_composite_vars(config_data.get("compose"), device, name, strict=config_data.get("strict", False))
+            self._add_host_to_composed_groups(config_data.get("groups"), device, name, strict=config_data.get("strict", False))
+            self._add_host_to_keyed_groups(
+                config_data.get("keyed_groups"), device, name, strict=config_data.get("strict", False)
                 )
+
+        if filter_group_names := config_data.get("filter_group_name"):
+            for group_name in list(inventory.get_groups_dict().keys()):
+                if group_name.lower() not in [grp.lower() for grp in filter_group_names]:
+                    inventory.remove_group(group_name)
+
+        if filter_exclude_hosts := config_data.get("filter_exclude_host"):
+            hosts_to_remove = [
+                host for host in inventory.hosts.values()
+                for exclude in filter_exclude_hosts
+                if re.match(exclude["regex"], host.vars.get(exclude["key"], ""), flags=re.IGNORECASE)
             ]
-            # Remove hosts from the inventory
             for host in hosts_to_remove:
                 inventory.remove_host(host)
 
-        # Only needed if you want to clean cached, other than that
-        # is not needed. I am leaving it there as an example.
         inventory.reconcile_inventory()

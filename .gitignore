@@ -131,6 +131,9 @@ dmypy.json
 # PyCharm
 .idea/
 
+# VSCode
+.vscode/
+
 # Ansible Tower ignore list
 
 # Ansible runtime and backups
@@ -142,17 +145,21 @@ dmypy.json
 
 # Tower runtime roles
 # roles/**
+roles/*
 !roles/requirements.yml
-collections/
+collections/*
+!collections/requirements.yml
 ansible_collections/
 
-# Try tyo avoid any plain-text passwords
+# Try tyo avoid any secrets, certs or plain-text passwords
 *pwd*
 *pass*
 *secret*
 *.key
 *.pub
 *id_ssh_rsa*
+*.crt
+*.pem
 
 # Exclude all binaries
 *.bin
@@ -162,3 +169,18 @@ ansible_collections/
 *.gzip
 *.tgz
 *.vhd
+*.exe
+*.msi
+*.gz
+*.iso
+
+# Ansible Execution Environments
+**/context/_build/*
+**/context/Containerfile
+**/context/Dockerfile
+
+# Ignore the .trash directory used for temp artifacts
+.trash
+
+# macOS
+.DS_Store
